@@ -23,7 +23,7 @@ Ideal for learning how to integrate industrial systems (IIoT, SCADA) with modern
 - **Flask API**:  
   - `/` — health check  
   - `/read` — manual trigger to read Modbus registers  
-- **Database Storage**: SQLite by default (easily switchable to PostgreSQL via Docker)  
+- **Database Storage**: (PostgreSQL via Docker)  
 - **Containerized Deployment**:  
   ```shell
   docker-compose up --build
