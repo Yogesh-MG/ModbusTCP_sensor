@@ -1,33 +1,34 @@
-# 🌱 Smart Irrigation System
+# 🏭 Modbus TCP Sensor Data Pipeline
 
-A full-stack IoT-based smart irrigation system that automates water management using real-time soil moisture data. The system integrates ESP32 hardware, a Django backend, and a modern React frontend to deliver monitoring, control, and automation capabilities.
+A lightweight industrial data acquisition system that simulates PLC sensor data over Modbus TCP, ingests it via a Flask service, and persists it into a PostgreSQL database for monitoring and analysis.
 
 ---
 
 ## 🚀 Overview
 
-This project enables intelligent irrigation by:
+This project demonstrates a complete data pipeline for industrial environments:
 
-* Continuously monitoring soil moisture using sensors
-* Automatically controlling a water pump based on thresholds
-* Allowing manual control via a web/mobile dashboard
-* Supporting both auto mode and manual override
-* Maintaining historical data for analytics and insights
+* A simulated PLC exposes sensor data via Modbus TCP
+* A Python service reads data using pymodbus
+* Data is processed and stored in PostgreSQL
+* A REST endpoint provides real-time access to sensor readings
 
-The system is designed to be scalable and production-ready, with proper authentication, device management, and API design.
+The system is designed to replicate real-world industrial telemetry workflows and can be extended for production-grade monitoring systems.
 
 ---
 
 ## 🏗️ Architecture
 
 ```
-[ Soil Sensor ]
-       ↓
-[ ESP32 Device ]  →  REST API  →  [ Django Backend ]
-       ↓                                ↓
-   Relay Control                  Database (SQLite/Postgres)
-                                        ↓
-                               [ React Frontend ]
+[ Modbus TCP Server (PLC Simulation) ]
+              ↓
+     (Holding Registers / Coils)
+              ↓
+[ Flask Service + Modbus Client ]
+              ↓
+        PostgreSQL Database
+              ↓
+        REST API Endpoint
 ```
 
 ---
@@ -36,115 +37,93 @@ The system is designed to be scalable and production-ready, with proper authenti
 
 ### Backend
 
-* Django + Django REST Framework
-* JWT Authentication (user)
-* API Key Authentication (device)
-* SQLite / PostgreSQL
+* Flask (API layer)
+* pymodbus (Modbus TCP client)
+* psycopg2 (PostgreSQL driver)
 
-### Frontend
+### Simulation
 
-* React (Vite)
-* Tailwind CSS
-* Capacitor (for mobile support)
+* pyModbusTCP (Modbus server)
 
-### Hardware
+### Database
 
-* ESP32 (WiFi-enabled microcontroller)
-* Soil Moisture Sensor
-* Relay Module (Pump control)
-* Optional Arduino relay bridge
+* PostgreSQL
 
 ---
 
 ## 📦 Features
 
-### 🌿 Core Functionality
-
-* Real-time soil moisture monitoring
-* Pump ON/OFF control
-* Auto irrigation based on thresholds
-* Manual override via dashboard
-
-### 🔐 Authentication
-
-* JWT-based user authentication
-* API key-based device authentication
-
-### 📊 Data & Insights
-
-* Historical moisture readings
-* Pump action logs
-* Current device status snapshot
-
-### ⚡ Automation
-
-* Auto mode:
-
-  * Pump ON when moisture < 30%
-  * Pump OFF when moisture > 60%
+* Real-time Modbus TCP data acquisition
+* PLC simulation with dynamic sensor values
+* Persistent storage in PostgreSQL
+* Background data logging (every 5 seconds)
+* REST API for on-demand data fetch
+* Structured logging for observability
 
 ---
 
 ## 📁 Project Structure
 
 ```
-iotfarming/
+ModbusTCP_sensor/
 │
-├── backend/               # Django backend
-│   ├── dashboard/         # Core app (models, APIs)
-│   ├── backend/           # Settings & config
+├── flask_app/
+│   └── app.py              # Flask API + Modbus client + DB writer
 │
-├── frontend/              # React + Tailwind app
-│   ├── src/
-│   ├── android/           # Capacitor mobile build
+├── modbus_server/
+│   └── modbus_server.py    # Simulated PLC (Modbus TCP server)
 │
-├── esp32/                 # ESP32 firmware
-├── aurdino/               # Arduino relay controller
-│
-└── combine_code_files.py  # Utility script
+└── comb.py                 # Utility to combine code files
 ```
 
 ---
 
-## 🔌 API Overview
+## 🔌 Data Mapping
 
-### Authentication
-
-* POST /api/token/ → Get JWT token
-* POST /api/token/refresh/
-
-### User APIs
-
-* GET /api/me/
-* POST /api/update/ → Toggle pump
-* POST /api/auto/ → Enable/disable auto mode
-
-### Device APIs (ESP32)
-
-* POST /api/readings/ → Send moisture data
-* GET /api/status/esp/ → Fetch pump + auto state
-
-### Admin APIs
-
-* POST /api/users/ → Create user + device
-* POST /api/devices/ → Add device
+| Data Type    | Modbus Address | Description               |
+| ------------ | -------------- | ------------------------- |
+| Temperature  | 40001–40002    | 32-bit float (°C)         |
+| Oxygen Level | 40003–40004    | 32-bit float (mg/L)       |
+| Alarm Status | Coil 00001     | Boolean (threshold-based) |
 
 ---
 
-## 🧠 System Logic
+## 🔁 System Behavior
 
-### Auto Mode
+### PLC Simulation
 
-* Runs server-side decision making
-* Uses moisture thresholds:
+* Temperature: Random value (20°C – 100°C)
+* Oxygen Level: Random value (3.8 – 6.9 mg/L)
+* Alarm: Triggered when oxygen > 6.0 mg/L
 
-  * < 30% → Pump ON
-  * > 60% → Pump OFF
+### Data Flow
 
-### Manual Mode
+1. Flask service connects to Modbus server
+2. Reads:
 
-* User controls pump via dashboard
-* Commands stored and synced with device
+   * Holding registers (floats via struct decoding)
+   * Coil status (boolean)
+3. Inserts processed data into PostgreSQL
+4. Logs output for monitoring
+
+---
+
+## 🌐 API Endpoints
+
+### GET `/read_plc`
+
+Fetches current PLC data and stores it in the database.
+
+#### Response
+
+```json
+{
+  "temperature": 45.23,
+  "oxygen_level": 5.67,
+  "alarm_status": false,
+  "status": "success"
+}
+```
 
 ---
 
@@ -154,95 +133,113 @@ iotfarming/
 
 ```bash
 git clone <your-repo-url>
-cd iotfarming
+cd ModbusTCP_sensor
 ```
 
 ---
 
-### 2. Backend Setup
+### 2. Start Modbus Server
 
 ```bash
-cd backend
+cd modbus_server
+python modbus_server.py
+```
 
+---
+
+### 3. Start Flask Service
+
+```bash
+cd flask_app
 pip install -r requirements.txt
-
-# Create .env file
-DJANGO_SECRET_KEY=your_secret
-TIME_ZONE=Asia/Kolkata
-ALLOWED_HOSTS=*
-
-python manage.py migrate
-python manage.py createsuperuser
-
-# Optional: seed data
-python manage.py seed --fresh
-
-python manage.py runserver
+python app.py
 ```
 
 ---
 
-### 3. Frontend Setup
+### 4. Database Setup
 
-```bash
-cd frontend
+Ensure PostgreSQL is running and create table:
 
-npm install
-npm run dev
+```sql
+CREATE TABLE plc_data (
+    id SERIAL PRIMARY KEY,
+    temperature FLOAT,
+    oxygen_level FLOAT,
+    alarm_status BOOLEAN,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
 ```
 
 ---
 
-### 4. ESP32 Setup
+## 🔄 Background Processing
 
-* Update credentials in esp32.cpp:
+* A background thread continuously:
 
-  * WiFi SSID & Password
-  * API Base URL
-  * Device API Key
-
-* Flash code using Arduino IDE / PlatformIO
+  * Reads PLC data
+  * Inserts into database
+* Interval: every 5 seconds
 
 ---
 
-## 🔐 Security Notes
+## 🧠 Key Implementation Details
 
-* Device communication is secured via API keys
-* User authentication uses JWT tokens
-* CORS enabled for frontend integration
+### Float Handling (Modbus → Python)
+
+* Uses struct.pack and struct.unpack for 32-bit float conversion from registers
+
+### Error Handling
+
+* Graceful failure with logging
+* Prevents crash on Modbus/DB errors
+
+### Logging
+
+* Structured logs for:
+
+  * PLC reads
+  * DB inserts
+  * Errors
+
+---
+
+## ⚠️ Limitations
+
+* No authentication on API endpoints
+* Database credentials are hardcoded
+* No retry/backoff strategy for failures
+* Single-threaded Flask deployment
+* No rate limiting or access control
 
 ---
 
 ## 📈 Future Improvements
 
-* Multi-device support per user
-* WebSocket-based real-time updates
-* Advanced irrigation prediction using ML
-* Mobile app optimization
-* Offline sync support
+* Add authentication (API key / JWT)
+* Implement connection pooling for DB
+* Add retry logic for Modbus failures
+* Dockerize full stack (Flask + Modbus + DB)
+* Add dashboard (Grafana / React)
+* Support multiple PLC devices
 
 ---
 
-## 🧪 Testing & Development
+## 🧪 Use Cases
 
-* Use Django admin for quick inspection
-* Seed command generates test data
-* API testing via Postman / curl
-
----
-
-## 🤝 Contributing
-
-Contributions are welcome. Please open an issue or submit a pull request with clear context and reasoning.
+* Industrial IoT data collection
+* PLC monitoring simulation
+* SCADA system prototyping
+* Edge-to-cloud data pipelines
 
 ---
 
 ## 📄 License
 
-This project is open-source and available under the MIT License.
+MIT License
 
 ---
 
 ## 👨‍💻 Author
 
-Built with a focus on real-world IoT + software integration, combining embedded systems with scalable backend architecture.
+Built as a practical system to simulate and understand industrial communication protocols and backend data pipelines.
